@@ -102,6 +102,6 @@ names(tab)
 ```
 
 ```{r}
-save(tab, file = "Data/landtagswahlen.RData")
+write_csv2(tab, file = "Data/landtagswahlen2.csv")
 ```
 
