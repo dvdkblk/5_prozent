@@ -1,0 +1,103 @@
+---
+title: "Prepare Data"
+output: html_notebook
+---
+
+https://www.r-bloggers.com/2021/07/politely-scraping-wikipedia-tables-2/
+```{r}
+# To clean data
+library(tidyverse)
+library(lubridate)
+library(janitor)
+
+# To scrape data
+library(rvest)
+library(httr)
+library(polite)
+```
+```{r}
+url <- "https://de.wikipedia.org/wiki/Ergebnisse_der_Landtagswahlen_in_der_Bundesrepublik_Deutschland"
+```
+
+```{r}
+url_bow <- bow(url)
+url_bow
+```
+
+```{r}
+ind_html <-
+  polite::scrape(url_bow) %>%  # scrape web page
+  rvest::html_nodes("table.wikitable") %>% # pull out specific table
+  rvest::html_table() 
+```
+
+```{r}
+ind_tab <- 
+  ind_html[[1]] %>% 
+  clean_names()
+```
+
+
+# Cleaning
+
+## Leere Zeilen entfernen 
+```{r}
+tab <- ind_tab %>% 
+  filter(bundesland != "")
+```
+
+
+## Column names verschieben
+```{r}
+names(tab) <- c("na", "na1", names(tab)[2:length(names(tab))-2])
+
+tab <- tab %>% select(-starts_with("na"))
+```
+
+## remove gesamt
+```{r}
+tab <- tab %>% filter(bundesland != "e29,5e")
+```
+
+## remove characters & convert to numeric
+```{r}
+tab <- tab %>% 
+  mutate(across(cdu_cs_ua:last_col(), ~ str_remove_all(.x, "[:alpha:]")))
+
+tab <- tab %>% 
+  mutate(across(everything(), ~str_replace_all(.x, ",", ".")))
+
+tab <- tab %>% 
+  mutate(across(cdu_cs_ua:last_col(), ~str_replace_all(.x, "(—|–)", "0")))
+
+tab <- tab %>% 
+  mutate(across(cdu_cs_ua:last_col(), ~as.numeric(.x)))
+
+#händisch korrigieren
+tab <- tab %>% 
+  mutate(weitere_parteiend = case_when(bundesland == "Berlin" ~ 2.1,
+                                       bundesland == "Sachsen-Anhalt" ~ 1.4,
+                                       T ~ weitere_parteiend))
+
+tab <- tab %>% 
+  mutate(letzte_wahl = as.numeric(letzte_wahl))
+```
+
+## Col names aufhübschen
+```{r}
+names(tab)
+
+names(tab)[3] <- "cdu_csu"
+names(tab)[5] <- "grüne"
+names(tab)[6] <- "afd"
+names(tab)[9] <- "freie_wähler"
+names(tab)[11] <- "tierschutz"
+names(tab)[12] <- "ödp"
+names(tab)[15] <- "weitere"
+names(tab)[16] <- "sonstige"
+
+names(tab)
+
+
+```
+
